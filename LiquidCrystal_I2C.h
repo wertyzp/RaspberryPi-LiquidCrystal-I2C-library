@@ -2,8 +2,9 @@
 #define FDB_LIQUID_CRYSTAL_I2C_H
 
 #include <inttypes.h>
-#include <Print.h>
-
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <string>
 // commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
@@ -46,9 +47,9 @@
 #define LCD_BACKLIGHT 0x08
 #define LCD_NOBACKLIGHT 0x00
 
-#define En B00000100  // Enable bit
-#define Rw B00000010  // Read/Write bit
-#define Rs B00000001  // Register select bit
+#define En 0b00000100  // Enable bit
+#define Rw 0b00000010  // Read/Write bit
+#define Rs 0b00000001  // Register select bit
 
 /**
  * This is the driver for the Liquid Crystal LCD displays that use the I2C bus.
@@ -57,7 +58,7 @@
  * The backlight is on by default, since that is the most likely operating mode in
  * most cases.
  */
-class LiquidCrystal_I2C : public Print {
+class LiquidCrystal_I2C {
 public:
 	/**
 	 * Constructor
@@ -68,7 +69,9 @@ public:
 	 * @param lcd_rows	Number of rows your LCD display has.
 	 * @param charsize	The size in dots that the display has, use LCD_5x10DOTS or LCD_5x8DOTS.
 	 */
-	LiquidCrystal_I2C(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows, uint8_t charsize = LCD_5x8DOTS);
+	LiquidCrystal_I2C(uint8_t i2c_bus_n, uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows, uint8_t charsize = LCD_5x8DOTS);
+
+        virtual ~LiquidCrystal_I2C();
 
 	/**
 	 * Set the LCD display in the correct begin state, must be called before anything else is done.
@@ -145,8 +148,7 @@ public:
 // Compatibility API function aliases
 	void setBacklight(uint8_t new_val);				// alias for backlight() and nobacklight()
 	void load_custom_character(uint8_t char_num, uint8_t *rows);	// alias for createChar()
-	void printstr(const char[]);
-
+        void print(std::string str);
 private:
 	void send(uint8_t, uint8_t);
 	void write4bits(uint8_t);
@@ -160,6 +162,11 @@ private:
 	uint8_t _rows;
 	uint8_t _charsize;
 	uint8_t _backlightval;
+        
+        uint8_t _i2c_bus_n;
+        int _fd;
+        void delay(int milliseconds);
+        void delayMicroseconds(useconds_t microseconds);
 };
 
 #endif // FDB_LIQUID_CRYSTAL_I2C_H

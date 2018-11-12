@@ -1,8 +1,10 @@
 #include "LiquidCrystal_I2C.h"
 #include <inttypes.h>
-#include <Arduino.h>
-#include <Wire.h>
-
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/i2c-dev.h>
+#include <stdio.h>
 // When the display powers up, it is configured as follows:
 //
 // 1. Display clear
@@ -22,8 +24,10 @@
 // can't assume that its in that state when a sketch starts (and the
 // LiquidCrystal constructor is called).
 
-LiquidCrystal_I2C::LiquidCrystal_I2C(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows, uint8_t charsize)
+LiquidCrystal_I2C::LiquidCrystal_I2C(uint8_t i2c_bus_n, 
+        uint8_t lcd_addr, uint8_t lcd_cols, uint8_t lcd_rows, uint8_t charsize)
 {
+        _i2c_bus_n = i2c_bus_n;
 	_addr = lcd_addr;
 	_cols = lcd_cols;
 	_rows = lcd_rows;
@@ -31,8 +35,21 @@ LiquidCrystal_I2C::LiquidCrystal_I2C(uint8_t lcd_addr, uint8_t lcd_cols, uint8_t
 	_backlightval = LCD_BACKLIGHT;
 }
 
+void LiquidCrystal_I2C::delay(int milliseconds) {
+        usleep(milliseconds * 1000);
+}
+
+void LiquidCrystal_I2C::delayMicroseconds(useconds_t microseconds) {
+        usleep(microseconds);
+}
+
 void LiquidCrystal_I2C::begin() {
-	Wire.begin();
+        char filename[20];
+        sprintf(filename, "/dev/i2c-%d", 1);
+        
+        _fd = open(filename, O_RDWR);    
+        int set_slave = ioctl(_fd, I2C_SLAVE, _addr);
+        
 	_displayfunction = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS;
 
 	if (_rows > 1) {
@@ -225,9 +242,7 @@ void LiquidCrystal_I2C::write4bits(uint8_t value) {
 }
 
 void LiquidCrystal_I2C::expanderWrite(uint8_t _data){
-	Wire.beginTransmission(_addr);
-	Wire.write((int)(_data) | _backlightval);
-	Wire.endTransmission();
+        i2c_smbus_write_byte(_fd, (int)(_data) | _backlightval);
 }
 
 void LiquidCrystal_I2C::pulseEnable(uint8_t _data){
@@ -242,6 +257,15 @@ void LiquidCrystal_I2C::load_custom_character(uint8_t char_num, uint8_t *rows){
 	createChar(char_num, rows);
 }
 
+void LiquidCrystal_I2C::print(std::string str){
+    int num = str.length();
+    const char * c_str = str.c_str();
+    for (int i = 0; i < num; i++) {
+        write(c_str[i]);
+    }
+}
+
+
 void LiquidCrystal_I2C::setBacklight(uint8_t new_val){
 	if (new_val) {
 		backlight();		// turn backlight on
@@ -250,8 +274,7 @@ void LiquidCrystal_I2C::setBacklight(uint8_t new_val){
 	}
 }
 
-void LiquidCrystal_I2C::printstr(const char c[]){
-	//This function is not identical to the function used for "real" I2C displays
-	//it's here so the user sketch doesn't have to be changed
-	print(c);
+
+LiquidCrystal_I2C::~LiquidCrystal_I2C() {
+    close(_fd);
 }
