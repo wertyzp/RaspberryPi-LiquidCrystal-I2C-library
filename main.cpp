@@ -20,24 +20,21 @@ using namespace std;
  * 
  */
 int main(int argc, char** argv) {
+    if (argc < 2) {
+        cout << "No string specified" << endl;
+        return EXIT_FAILURE;
+    }
+    
     LiquidCrystal_I2C lcd(1,0x27,16,2);
     lcd.begin();
     lcd.setBacklight(1);
     lcd.setCursor(0,0);
-    
-    string str;
-    while (true) {
-        getline(cin, str, '\n');
-        cout << "Writing " << str.c_str() << endl;
-        lcd.clear();
-        lcd.print(str.substr(0, 16));
-        if (str.length() > 16) {
-            lcd.setCursor(0, 1);
-            lcd.print(str.substr(16, 16));
-        }
-        lcd.setCursor(0, 0);
+    lcd.print(argv[1]);
+    if (argc > 2) {
+        lcd.setCursor(0, 1);
+        lcd.print(argv[2]);
     }
     
-    return 0;
+    return EXIT_SUCCESS;
 }
 
